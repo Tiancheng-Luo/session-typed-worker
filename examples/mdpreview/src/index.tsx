@@ -7,18 +7,30 @@ import * as ReactDOM from "react-dom";
 import { send, recv } from "session-typed-worker";
 import * as proto from "./protocols";
 
-class App extends React.Component<{}, { html: string }> {
+interface State {
+  markdown: string;
+  html: string;
+}
+
+class App extends React.Component<{}, State> {
   private p: proto.Md2Html["client"] = new Worker("./worker.ts") as any;
+  private textarea: React.RefObject<HTMLTextAreaElement>;
 
   constructor(props: never) {
     super(props);
-    this.state = { html: "" };
+    this.state = { html: "", markdown: "" };
+    this.textarea = React.createRef();
   }
 
   async handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
-    const p1 = send(this.p, e.target.value);
+    const markdown = e.target.value;
+    const cursor = e.target.selectionStart;
+    const p1 = send(this.p, markdown);
     const [html] = await recv(p1);
-    this.setState({ html });
+    this.setState({ markdown, html }, () => {
+      if (this.textarea.current != null)
+        this.textarea.current.selectionEnd = cursor;
+    });
   }
 
   render() {
@@ -26,6 +38,8 @@ class App extends React.Component<{}, { html: string }> {
       <div className="container">
         <textarea
           className="edit-area"
+          ref={this.textarea}
+          value={this.state.markdown}
           onChange={this.handleChange.bind(this)}
         />
         <div
