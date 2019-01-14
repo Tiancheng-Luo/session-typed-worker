@@ -45,14 +45,15 @@ class App extends React.Component<{}, State> {
   async handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const markdown = e.target.value;
     const cursor = e.target.selectionStart;
-    const p1 = send(this.p, "md2html") as proto.Md2Html["client"];
-    const p2 = send(p1, markdown);
-    const [html] = await recv(p2);
-
-    this.setState({ markdown, html }, () => {
+    this.setState({ markdown }, () => {
       if (this.textarea.current != null)
         this.textarea.current.selectionEnd = cursor;
     });
+
+    const p1 = send(this.p, "md2html") as proto.Md2Html["client"];
+    const p2 = send(p1, markdown);
+    const [html] = await recv(p2);
+    this.setState({ html });
   }
 
   render() {
