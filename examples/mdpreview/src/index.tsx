@@ -13,7 +13,7 @@ interface State {
 }
 
 class App extends React.Component<{}, State> {
-  private p: proto.Md2Html["client"] = new Worker("./worker.ts") as any;
+  private p: proto.RPC["client"] = new Worker("./worker.ts") as any;
   private textarea: React.RefObject<HTMLTextAreaElement>;
 
   constructor(props: never) {
@@ -22,11 +22,33 @@ class App extends React.Component<{}, State> {
     this.textarea = React.createRef();
   }
 
+  async handleKeyDown(e: React.KeyboardEvent) {
+    if (e.ctrlKey && e.key === "s") {
+      e.preventDefault();
+      if (this.textarea.current != null) {
+        const cursor = this.textarea.current.selectionStart;
+        const p1 = send(this.p, "format") as proto.Format["client"];
+        const p2 = send(p1, {
+          source: this.state.markdown,
+          cursorOffset: cursor
+        });
+        const [{ formatted, cursorOffset }] = await recv(p2);
+
+        this.setState({ markdown: formatted }, () => {
+          if (this.textarea.current != null)
+            this.textarea.current.selectionEnd = cursorOffset;
+        });
+      }
+    }
+  }
+
   async handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const markdown = e.target.value;
     const cursor = e.target.selectionStart;
-    const p1 = send(this.p, markdown);
-    const [html] = await recv(p1);
+    const p1 = send(this.p, "md2html") as proto.Md2Html["client"];
+    const p2 = send(p1, markdown);
+    const [html] = await recv(p2);
+
     this.setState({ markdown, html }, () => {
       if (this.textarea.current != null)
         this.textarea.current.selectionEnd = cursor;
@@ -35,7 +57,11 @@ class App extends React.Component<{}, State> {
 
   render() {
     return (
-      <div className="container">
+      <div
+        className="container"
+        tabIndex={0}
+        onKeyDown={this.handleKeyDown.bind(this)}
+      >
         <textarea
           className="edit-area"
           ref={this.textarea}
